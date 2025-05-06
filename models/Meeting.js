@@ -16,6 +16,12 @@ const MeetingSchema = new mongoose.Schema({
     required: [true, "Instructor name is required"],
     trim: true,
   },
+  teacherId: {
+    type: String,
+    trim: true,
+    // Making it optional in case legacy data doesn't have it
+    // This will store a MongoDB ObjectId as a string
+  },
   description: {
     type: String,
     trim: true,
@@ -46,8 +52,8 @@ const MeetingSchema = new mongoose.Schema({
     default: 0,
   },
   courseId: {
-    type: String, // Changed from ObjectId to String
-    trim: true, // Added trim
+    type: String,
+    trim: true,
     required: [true, "Course ID is required"],
   },
   attendees: [

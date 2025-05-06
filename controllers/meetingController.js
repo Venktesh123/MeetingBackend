@@ -45,6 +45,7 @@ const createMeeting = async (req, res) => {
       startTime,
       endTime,
       instructor,
+      teacherId, // New field - teacher ID from frontend
       roomNumber,
       color,
       courseId,
@@ -82,6 +83,7 @@ const createMeeting = async (req, res) => {
       subject,
       link: googleMeetData.hangoutLink,
       instructor,
+      teacherId, // Store the teacher ID from frontend
       description,
       date: new Date(startTime).setHours(0, 0, 0, 0), // Set to start of day
       start: new Date(startTime),
@@ -89,7 +91,7 @@ const createMeeting = async (req, res) => {
       roomNumber:
         roomNumber || `Virtual Room ${Math.floor(Math.random() * 1000)}`,
       color: color || `#${Math.floor(Math.random() * 16777215).toString(16)}`,
-      courseId, // Now accepted as a string
+      courseId,
       attendees,
       participants: attendees.length,
       googleEventId: googleMeetData.id, // Store the Google Calendar event ID
@@ -120,6 +122,7 @@ const updateMeeting = async (req, res) => {
       subject,
       description,
       instructor,
+      teacherId, // Added teacherId
       roomNumber,
       color,
       // Note: We don't allow updating link, date, start, end times, or courseId
@@ -137,6 +140,7 @@ const updateMeeting = async (req, res) => {
     if (subject) meeting.subject = subject;
     if (description) meeting.description = description;
     if (instructor) meeting.instructor = instructor;
+    if (teacherId) meeting.teacherId = teacherId; // Update teacherId if provided
     if (roomNumber) meeting.roomNumber = roomNumber;
     if (color) meeting.color = color;
 
