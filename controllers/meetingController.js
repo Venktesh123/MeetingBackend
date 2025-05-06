@@ -3,16 +3,15 @@ const Meeting = require("../models/Meeting");
 const googleMeetService = require("../services/googleMeetService");
 const { google } = require("googleapis");
 
-// Get all meetings
+// Get all meetings - no filtering
 const getAllMeetings = async (req, res) => {
   try {
-    // Allow filtering by courseId if provided
-    const filter = {};
-    if (req.query.courseId) {
-      filter.courseId = req.query.courseId;
-    }
+    console.log("Get all meetings request received");
 
-    const meetings = await Meeting.find(filter).sort({ date: 1, start: 1 });
+    // Get all meetings without any filters
+    const meetings = await Meeting.find().sort({ date: 1, start: 1 });
+    console.log(`Found ${meetings.length} meetings`);
+
     res.json(meetings);
   } catch (error) {
     console.error("Error fetching meetings:", error);
@@ -45,7 +44,7 @@ const createMeeting = async (req, res) => {
       startTime,
       endTime,
       instructor,
-      teacherId, // New field - teacher ID from frontend
+      teacherId,
       roomNumber,
       color,
       courseId,
@@ -83,7 +82,7 @@ const createMeeting = async (req, res) => {
       subject,
       link: googleMeetData.hangoutLink,
       instructor,
-      teacherId, // Store the teacher ID from frontend
+      teacherId,
       description,
       date: new Date(startTime).setHours(0, 0, 0, 0), // Set to start of day
       start: new Date(startTime),
@@ -118,16 +117,8 @@ const createMeeting = async (req, res) => {
 // Update a meeting
 const updateMeeting = async (req, res) => {
   try {
-    const {
-      subject,
-      description,
-      instructor,
-      teacherId, // Added teacherId
-      roomNumber,
-      color,
-      // Note: We don't allow updating link, date, start, end times, or courseId
-      // as these would require recreating the Google Meet
-    } = req.body;
+    const { subject, description, instructor, teacherId, roomNumber, color } =
+      req.body;
 
     // Find the meeting
     const meeting = await Meeting.findById(req.params.id);
@@ -140,7 +131,7 @@ const updateMeeting = async (req, res) => {
     if (subject) meeting.subject = subject;
     if (description) meeting.description = description;
     if (instructor) meeting.instructor = instructor;
-    if (teacherId) meeting.teacherId = teacherId; // Update teacherId if provided
+    if (teacherId !== undefined) meeting.teacherId = teacherId;
     if (roomNumber) meeting.roomNumber = roomNumber;
     if (color) meeting.color = color;
 
