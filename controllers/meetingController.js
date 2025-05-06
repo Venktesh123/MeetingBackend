@@ -89,7 +89,7 @@ const createMeeting = async (req, res) => {
       roomNumber:
         roomNumber || `Virtual Room ${Math.floor(Math.random() * 1000)}`,
       color: color || `#${Math.floor(Math.random() * 16777215).toString(16)}`,
-      courseId,
+      courseId, // Now accepted as a string
       attendees,
       participants: attendees.length,
       googleEventId: googleMeetData.id, // Store the Google Calendar event ID

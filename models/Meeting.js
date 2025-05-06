@@ -46,8 +46,8 @@ const MeetingSchema = new mongoose.Schema({
     default: 0,
   },
   courseId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Course",
+    type: String, // Changed from ObjectId to String
+    trim: true, // Added trim
     required: [true, "Course ID is required"],
   },
   attendees: [
