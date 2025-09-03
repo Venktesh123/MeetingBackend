@@ -52,6 +52,13 @@ const oauth2Callback = async (req, res) => {
               padding-top: 20px;
               border-top: 1px solid #eee;
             }
+            .token-info {
+              background: #f5f5f5;
+              padding: 15px;
+              border-radius: 5px;
+              margin: 15px 0;
+              font-family: monospace;
+            }
           </style>
         </head>
         <body>
@@ -59,10 +66,20 @@ const oauth2Callback = async (req, res) => {
             <h3>Authentication successful!</h3>
             <p>Your Google account has been successfully authenticated.</p>
             <p>The OAuth tokens have been securely stored in the database.</p>
+            
+            <div class="token-info">
+              <strong>Token Information:</strong><br>
+              • Database Storage: 1 year (365 days)<br>
+              • Google Access Token: ~1 hour (auto-refreshed)<br>
+              • Google Refresh Token: Permanent (until revoked)<br>
+              • Token Expires: ${new Date(tokens.expiry_date).toLocaleString()}
+            </div>
+            
             <p>You can close this window now and return to the application.</p>
             
             <div class="instructions">
-              <p><strong>Note:</strong> Your authentication is valid for 7 days or until you revoke access.</p>
+              <p><strong>Note:</strong> Your authentication is now valid for 1 year or until you revoke access.</p>
+              <p>The system will automatically refresh access tokens as needed.</p>
               <p>If you experience authentication issues, you can re-authenticate by visiting the login endpoint again.</p>
             </div>
           </div>
@@ -78,7 +95,17 @@ const oauth2Callback = async (req, res) => {
 // Check if authenticated
 const checkAuthStatus = async (req, res) => {
   try {
-    // Initialize OAuth client to check authentication status
+    // Get detailed token status
+    const tokenStatus = await googleMeetService.getTokenStatus();
+
+    if (!tokenStatus.exists) {
+      return res.json({
+        isAuthenticated: false,
+        message: "No authentication token found",
+      });
+    }
+
+    // Initialize OAuth client to verify authentication
     const client = await googleMeetService.initializeOAuthClient();
     const isAuthenticated = client !== null;
 
@@ -89,10 +116,24 @@ const checkAuthStatus = async (req, res) => {
         createdAt: -1,
       });
       if (token) {
+        const dbExpiryDate = new Date(
+          token.createdAt.getTime() + 365 * 24 * 60 * 60 * 1000
+        );
         tokenInfo = {
-          expiresAt: new Date(token.expiry_date).toISOString(),
+          googleTokenExpiresAt: new Date(token.expiry_date).toISOString(),
+          databaseTokenExpiresAt: dbExpiryDate.toISOString(),
           scopes: token.scope,
-          isExpired: token.expiry_date < Date.now(),
+          isGoogleTokenExpired: token.expiry_date < Date.now(),
+          isDatabaseTokenExpired: dbExpiryDate.getTime() < Date.now(),
+          tokenCreatedAt: token.createdAt.toISOString(),
+          timeUntilDatabaseExpiry: Math.max(
+            0,
+            dbExpiryDate.getTime() - Date.now()
+          ),
+          timeUntilGoogleTokenExpiry: Math.max(
+            0,
+            token.expiry_date - Date.now()
+          ),
         };
       }
     }
@@ -105,10 +146,14 @@ const checkAuthStatus = async (req, res) => {
     res.json({
       isAuthenticated,
       tokenInfo,
+      tokenStatus,
     });
   } catch (error) {
     console.error("Error checking authentication status:", error);
-    res.json({ isAuthenticated: false });
+    res.json({
+      isAuthenticated: false,
+      error: "Failed to check authentication status",
+    });
   }
 };
 

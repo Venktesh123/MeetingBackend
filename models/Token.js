@@ -29,7 +29,7 @@ const TokenSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: "90d", // Token documents will be automatically deleted after 90 days
+    expires: "365d", // Token documents will be automatically deleted after 365 days (1 year)
   },
 });
 

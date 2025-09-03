@@ -58,8 +58,8 @@ class GoogleMeetService {
         return null;
       }
 
-      // Check if token is expired or about to expire (within 5 minutes)
-      const isExpired = token.expiry_date < Date.now() + 5 * 60 * 1000;
+      // Check if token is expired or about to expire (within 30 minutes for better buffer)
+      const isExpired = token.expiry_date < Date.now() + 30 * 60 * 1000;
 
       if (isExpired) {
         console.log("🔄 Token has expired, attempting to refresh");
@@ -103,6 +103,7 @@ class GoogleMeetService {
       console.log(
         "- Expiry Date: " + new Date(token.expiry_date).toLocaleString()
       );
+      console.log("- Database TTL: 1 year from creation");
 
       return client;
     } catch (error) {
@@ -119,11 +120,21 @@ class GoogleMeetService {
       // Request new token
       const { credentials } = await oauthClient.refreshAccessToken();
 
+      // Extend token expiry if needed (Google typically gives 1 hour expiry)
+      // We can't extend Google's actual token expiry, but we ensure our database keeps it longer
+      const extendedCredentials = {
+        ...credentials,
+        // Keep the original expiry_date from Google, but our database will store it for 1 year
+      };
+
       // Save new token to database
-      await this.saveTokenToDatabase(credentials);
+      await this.saveTokenToDatabase(extendedCredentials);
 
       console.log("✅ Token refreshed successfully");
-      return credentials;
+      console.log(
+        "- New expiry: " + new Date(credentials.expiry_date).toLocaleString()
+      );
+      return extendedCredentials;
     } catch (error) {
       console.error("❌ Error refreshing token:", error);
       return null;
@@ -199,11 +210,19 @@ class GoogleMeetService {
         token_type: tokenData.token_type,
         expiry_date: tokenData.expiry_date,
         scope: tokenData.scope,
+        // createdAt will be set automatically and will have TTL of 1 year
       });
 
       // Save token to database
       await token.save();
       console.log("✅ Token saved to database");
+      console.log(
+        "- Token will be automatically deleted from database after 1 year"
+      );
+      console.log(
+        "- Google token expires: " +
+          new Date(tokenData.expiry_date).toLocaleString()
+      );
       return true;
     } catch (error) {
       console.error("❌ Error saving token to database:", error);
@@ -248,10 +267,15 @@ class GoogleMeetService {
       const client = this.createOAuthClient();
       const { tokens } = await client.getToken(code);
 
-      // Save token to database
+      // Save token to database (will now have 1 year TTL)
       await this.saveTokenToDatabase(tokens);
 
       console.log("✅ Tokens exchanged and saved to database successfully");
+      console.log("- Database TTL: 1 year from now");
+      console.log(
+        "- Google access token expires: " +
+          new Date(tokens.expiry_date).toLocaleString()
+      );
       return tokens;
     } catch (error) {
       console.error("Token Exchange Error:", error);
@@ -324,6 +348,35 @@ class GoogleMeetService {
     } catch (error) {
       console.error("❌ Error creating Google Meet:", error);
       throw error;
+    }
+  }
+
+  // Method to check token status and remaining time
+  async getTokenStatus() {
+    try {
+      const token = await this.getTokenFromDatabase();
+      if (!token) {
+        return { exists: false };
+      }
+
+      const now = Date.now();
+      const googleTokenExpiry = new Date(token.expiry_date);
+      const dbTokenExpiry = new Date(
+        token.createdAt.getTime() + 365 * 24 * 60 * 60 * 1000
+      ); // 1 year from creation
+
+      return {
+        exists: true,
+        googleTokenExpiry: googleTokenExpiry.toISOString(),
+        googleTokenExpiresIn: Math.max(0, token.expiry_date - now),
+        databaseTokenExpiry: dbTokenExpiry.toISOString(),
+        databaseTokenExpiresIn: Math.max(0, dbTokenExpiry.getTime() - now),
+        isGoogleTokenExpired: token.expiry_date < now,
+        needsRefresh: token.expiry_date < now + 30 * 60 * 1000, // Within 30 minutes
+      };
+    } catch (error) {
+      console.error("❌ Error getting token status:", error);
+      return { exists: false, error: error.message };
     }
   }
 }
